@@ -1,0 +1,60 @@
+import torch
+import nncore
+from peft import PeftModel
+from transformers import Qwen2_5_VLForConditionalGeneration, AutoTokenizer, AutoProcessor
+from qwen_vl_utils import process_vision_info
+
+
+def get_auto_device():
+    """Select device: cuda > npu > cpu"""
+    try:
+        import torch_npu
+        has_npu = torch_npu.npu.is_available()
+    except ImportError:
+        has_npu = False
+
+    return 'cuda' if torch.cuda.is_available() else 'npu' if has_npu else 'cpu'
+
+
+def build_model(
+    base_model_path,
+    lora_adapter_paths=None,   # None / str / list[str]
+    is_trainable=False,
+    merge_adapter=True,
+    device="auto",
+    dtype="auto"
+):
+    """
+    Build model with optional multi-LoRA adapter stacking.
+    """
+    processor = AutoProcessor.from_pretrained(base_model_path)
+
+    print(f"Loading base model from {base_model_path}...")
+    model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+        base_model_path, torch_dtype="auto", device_map="auto"
+    )
+
+    if lora_adapter_paths is not None:
+        if isinstance(lora_adapter_paths, str):
+            lora_adapter_paths = [lora_adapter_paths]
+
+        for idx, lora_path in enumerate(lora_adapter_paths):
+            if nncore.is_dir(lora_path):
+                print(f"Loading LoRA adapter {idx+1}: {lora_path} ...")
+                model = PeftModel.from_pretrained(
+                    model,
+                    lora_path,
+                    is_trainable=is_trainable,
+                    torch_device=str(model.get_input_embeddings().weight.device)
+                )
+        
+        if merge_adapter:
+            print("Merging all LoRA adapters and unloading...")
+            model = model.merge_and_unload()
+            model._hf_peft_config_loaded = False
+
+    if not is_trainable and device != "all":
+        device = get_auto_device() if device == "auto" else device
+        model = model.to(device).eval()
+
+    return model, processor
