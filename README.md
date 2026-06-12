@@ -222,10 +222,11 @@ GroundVTS/
 If you find this work useful, please cite our paper:
 
 ```bibtex
-@article{fan2026groundvts,
+@inproceedings{fan2026groundvts,
   title={GroundVTS: Visual Token Sampling in Multimodal Large Language Models for Video Temporal Grounding},
   author={Fan, Rong and Xiao, Kaiyan and Zhu, Minghao and Wang, Liuyi and Dai, Kai and Yang, Zhao},
-  journal={arXiv preprint arXiv:2604.02093},
+  booktitle={Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition},
+  pages={10408--10418},
   year={2026}
 }
 ```
